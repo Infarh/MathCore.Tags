@@ -1,4 +1,6 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System;
+using System.Collections.Generic;
+using System.Threading;
 
 namespace MathCore.Tags;
 
@@ -24,8 +26,13 @@ internal static class TagPool
         {
             var tags = __Tags ??= new();
 
-            foreach (var w in tags.Keys.Where(w => !w.IsAlive).ToArray())
-                tags.Remove(w);
+            var to_remove = new List<WeakReference>(tags.Keys.Count);
+            foreach (var w in tags.Keys)
+                if (!w.IsAlive)
+                    to_remove.Add(w);
+
+            foreach (var dead_ref in to_remove)
+                tags.Remove(dead_ref);
 
             //var reference = .Find(Selector);
 
@@ -45,7 +52,7 @@ internal static class TagPool
 
             var type = Tag?.GetType() ?? typeof(object);
 
-            if (dictionary.Keys.Contains(type))
+            if (dictionary.ContainsKey(type))
                 dictionary[type] = Tag;
             else
                 dictionary.Add(type, Tag);
@@ -56,14 +63,11 @@ internal static class TagPool
         }
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool IsAlive(WeakReference w) => !w.IsAlive;
-
     /// <summary>Получить метку указанного типа для указанного объекта</summary>
-    /// <typeparam name="TTagType">Тип объекта-метки</typeparam>
+    /// <typeparam name="T">Тип объекта-метки</typeparam>
     /// <param name="o">Целевой объект</param>
     /// <returns>Объект-метка</returns>
-    public static TTagType? Tag<TTagType>(object o)
+    public static T? Tag<T>(object o)
     {
         if (o is null) throw new ArgumentNullException(nameof(o));
 
@@ -89,8 +93,8 @@ internal static class TagPool
 
             return reference is null
                 ? default
-                : tags[reference].TryGetValue(typeof(TTagType), out var result)
-                    ? (TTagType?)result
+                : tags[reference].TryGetValue(typeof(T), out var result)
+                    ? (T?)result
                     : default;
         }
         finally
